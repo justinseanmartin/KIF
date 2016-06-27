@@ -26,6 +26,7 @@
 }
 - (IBAction)buttonTapped:(id)sender {
     [self.label performSelector:@selector(setText:) withObject:@"Tapped" afterDelay:0.5];
+    [self.label performSelector:@selector(setAccessibilityLabel:) withObject:@"Tapped" afterDelay:0.5];
 }
 
 @end
