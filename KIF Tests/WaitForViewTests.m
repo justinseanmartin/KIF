@@ -20,7 +20,7 @@
 
 - (void)testWaitingForViewWithTraits
 {
-    [tester waitForViewWithAccessibilityLabel:@"Test Suite" traits:UIAccessibilityTraitStaticText];
+    [tester waitForViewWithAccessibilityLabel:@"UIAlertView" traits:UIAccessibilityTraitButton];
 }
 
 - (void)testWaitingForViewWithValue
