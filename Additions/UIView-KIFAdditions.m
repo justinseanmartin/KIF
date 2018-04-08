@@ -15,6 +15,7 @@
 #import <objc/runtime.h>
 #import "UIEvent+KIFAdditions.h"
 #import "KIFUITestActor.h"
+#import "UIView-Debugging.h"
 
 double KIFDegreesToRadians(double deg) {
     return (deg) / 180.0 * M_PI;
@@ -237,8 +238,13 @@ NS_INLINE BOOL StringsMatchExceptLineBreaks(NSString *expected, NSString *actual
                     [indexPathsForVisibleRows addObject:indexPath];
                 }
             }];
-            
+
+            NSLog(@"=====> Starting enumeration of tableView: %@ - section count: %@", tableView, @([tableView numberOfSections]));
+            [UIView printViewHierarchy];
+
             for (NSUInteger section = 0, numberOfSections = [tableView numberOfSections]; section < numberOfSections; section++) {
+                NSLog(@"=====> Starting enumeration of tableView: %@ section #: %@ row count: %@", tableView, @(section), @([tableView numberOfRowsInSection:section]));
+
                 for (NSUInteger row = 0, numberOfRows = [tableView numberOfRowsInSection:section]; row < numberOfRows; row++) {
                     if (!self.window) {
                         break;
@@ -247,13 +253,16 @@ NS_INLINE BOOL StringsMatchExceptLineBreaks(NSString *expected, NSString *actual
                     // Skip visible rows because they are already handled
                     NSIndexPath *indexPath = [NSIndexPath indexPathForRow:row inSection:section];
                     if ([indexPathsForVisibleRows containsObject:indexPath]) {
+                        NSLog(@"=====> Skipping visible row: %@ in section: %@", @(row), @(section));
                         continue;
                     }
                     
                     @autoreleasepool {
                         // Get the cell directly from the dataSource because UITableView will only vend visible cells
+                        NSLog(@"=====> Dequeueing cell in tableView: %@ with data source:%@ at index path: %@", tableView, tableView.dataSource, indexPath);
                         UITableViewCell *cell = [tableView.dataSource tableView:tableView cellForRowAtIndexPath:indexPath];
-                        
+                        NSLog(@"=====> Cell returned: %@", cell);
+
                         UIAccessibilityElement *element = [cell accessibilityElementMatchingBlock:matchBlock notHidden:NO];
                         
                         // Remove the cell from the table view so that it doesn't stick around
@@ -261,19 +270,30 @@ NS_INLINE BOOL StringsMatchExceptLineBreaks(NSString *expected, NSString *actual
                         
                         // Skip this cell if it isn't the one we're looking for
                         if (!element) {
+                            NSLog(@"=====> Cell WAS NOT a match for the predicate!");
                             continue;
                         }
+
+                        NSLog(@"=====> Cell WAS a match for the predicate!");
                     }
                     
                     // Scroll to the cell and wait for the animation to complete
                     BOOL animationEnabled = [KIFUITestActor testActorAnimationsEnabled];
+                    NSLog(@"=====> Scroll the cell to be visible");
                     [tableView scrollToRowAtIndexPath:indexPath atScrollPosition:UITableViewScrollPositionNone animated:animationEnabled];
                     // Note: using KIFRunLoopRunInModeRelativeToAnimationSpeed here may cause tests to stall
                     CFTimeInterval delay = animationEnabled ? 0.5 : 0.05;
                     CFRunLoopRunInMode(UIApplicationCurrentRunMode, delay, false);
                     
                     // Now try finding the element again
-                    return [self accessibilityElementMatchingBlock:matchBlock];
+                    NSLog(@"=====> Try finding the element again after scrolling");
+                    UIAccessibilityElement *elementMatchingAfterScroll = [self accessibilityElementMatchingBlock:matchBlock];
+                    if (elementMatchingAfterScroll) {
+                        NSLog(@"=====> Element WAS a match for the predicate after scrolling!");
+                    } else {
+                        NSLog(@"=====> Element WAS NOT a match for the predicate after scrolling!");
+                    }
+                    return elementMatchingAfterScroll;
                 }
             }
         } else if ([self isKindOfClass:[UICollectionView class]]) {
