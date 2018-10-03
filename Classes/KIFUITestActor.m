@@ -1101,6 +1101,8 @@ static BOOL KIFUITestActorAnimationsEnabled = YES;
     KIFDisplacement swipeDisplacement = [self _displacementForSwipingInDirection:direction];
   
     [viewToSwipe dragFromPoint:swipeStart displacement:swipeDisplacement steps:kNumberOfPointsInSwipePath];
+
+    [self waitForAnimationsToFinish];
 }
 
 - (void)pullToRefreshViewWithAccessibilityLabel:(NSString *)label
