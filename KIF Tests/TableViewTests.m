@@ -299,6 +299,7 @@
     UITableView *tableView;
     [tester waitForAccessibilityElement:NULL view:&tableView withIdentifier:@"TableView Tests Table" tappable:NO];
 	[tester waitForAnimationsToFinish];
+
     // First row
     NSIndexPath *firstCellPath = [NSIndexPath indexPathForRow:0 inSection:0];
     [tester swipeRowAtIndexPath:firstCellPath inTableView:tableView inDirection:KIFSwipeDirectionLeft];
@@ -314,6 +315,10 @@
     [tester tapViewWithAccessibilityLabel:@"Delete"];
     
     __KIFAssertEqualObjects([tester waitForCellAtIndexPath:lastCellPath inTableViewWithAccessibilityIdentifier:@"TableView Tests Table"].textLabel.text, @"Deleted", @"");
+
+    // Swipe up
+    [tester swipeRowAtIndexPath:lastCellPath inTableView:tableView inDirection:KIFSwipeDirectionDown];
+    [tester waitForTimeInterval:10];
 }
 
 @end

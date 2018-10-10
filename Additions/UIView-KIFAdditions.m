@@ -401,7 +401,7 @@ NS_INLINE BOOL StringsMatchExceptLineBreaks(NSString *expected, NSString *actual
 
 - (NSArray *)subviewsWithClassNameOrSuperClassNamePrefix:(NSString *)prefix;
 {
-    NSMutableArray * result = [NSMutableArray array];
+    NSMutableArray *result = [NSMutableArray array];
     
     // Breadth-first population of matching subviews
     // First traverse the next level of subviews, adding matches
@@ -419,11 +419,11 @@ NS_INLINE BOOL StringsMatchExceptLineBreaks(NSString *expected, NSString *actual
     
     // Now traverse the subviews of the subviews, adding matches
     for (UIView *view in self.subviews) {
-        NSArray * matchingSubviews = [view subviewsWithClassNameOrSuperClassNamePrefix:prefix];
+        NSArray *matchingSubviews = [view subviewsWithClassNameOrSuperClassNamePrefix:prefix];
         [result addObjectsFromArray:matchingSubviews];
     }
 
-    return result;
+    return [result copy];
 }
 
 
@@ -604,6 +604,9 @@ NS_INLINE BOOL StringsMatchExceptLineBreaks(NSString *expected, NSString *actual
     }
     
     arrayOfPaths = newPaths;
+    UIView *hitView = [self.window hitTest:[arrayOfPaths[0][0] CGPointValue] withEvent:nil];
+    NSArray<UIView *> *allSuperviews = [self _allSuperviewsOfView:hitView];
+    NSDictionary *previousLocInfo = [self _locInfoForViews:allSuperviews];
 
     for (NSUInteger pointIndex = 0; pointIndex < pointsInPath; pointIndex++) {
         // create initial touch event and send touch down event
@@ -657,9 +660,82 @@ NS_INLINE BOOL StringsMatchExceptLineBreaks(NSString *expected, NSString *actual
         [self becomeFirstResponder];
     }
 
-    while (UIApplicationCurrentRunMode != kCFRunLoopDefaultMode) {
+    NSUInteger attempts = 100;
+    do {
         CFRunLoopRunInMode(UIApplicationCurrentRunMode, 0.1, false);
+        if (![self _views:allSuperviews changedFromPreviousLocation:previousLocInfo]) {
+            break;
+        }
+
+        // Remove any views that are no longer in the view hierarchy
+        UIView *orphanedView = allSuperviews[0];
+        while (orphanedView.superview != nil) {
+            orphanedView = orphanedView.superview;
+        }
+
+        if (orphanedView != allSuperviews.lastObject) {
+            NSUInteger index = [allSuperviews indexOfObject:orphanedView];
+            allSuperviews = [allSuperviews subarrayWithRange:NSMakeRange(index, allSuperviews.count - index)];
+        }
+
+        previousLocInfo = [self _locInfoForViews:allSuperviews];
+    } while (--attempts > 0);
+
+    if (attempts == 0) {
+        NSLog(@"Continuing after waiting 10 seconds for view to stabilize after dragging action.");
     }
+}
+
+- (NSArray<UIView *> *)_allSuperviewsOfView:(UIView *)view;
+{
+    NSMutableArray<UIView *> *superviews = [NSMutableArray array];
+
+    do {
+        [superviews addObject:view];
+        view = view.superview;
+    } while (view != nil);
+
+    return [superviews copy];
+}
+
+- (NSDictionary *)_locInfoForViews:(NSArray<UIView *> *)views;
+{
+    NSMutableDictionary *locInfoForViews = [NSMutableDictionary dictionary];
+
+    for (UIView *view in views) {
+        NSValue *viewRef = [NSValue valueWithNonretainedObject:view];
+        NSValue *boundsRectRef = [NSValue valueWithCGRect:view.bounds];
+        NSValue *frameRectRef = [NSValue valueWithCGRect:view.frame];
+        locInfoForViews[viewRef] = @{@"frame": frameRectRef, @"bounds": boundsRectRef};
+    }
+
+    return [locInfoForViews copy];
+}
+
+- (BOOL)_views:(NSArray<UIView *> *)views changedFromPreviousLocation:(NSDictionary *)previousLocInfo;
+{
+    for (UIView *view in views) {
+        NSValue *viewRef = [NSValue valueWithNonretainedObject:view];
+        NSDictionary *locInfo = [previousLocInfo objectForKey:viewRef];
+
+        if (!locInfo) {
+            return YES;
+        }
+
+        NSValue *frameRectRef = locInfo[@"frame"];
+        CGRect previousFrameForView = [frameRectRef CGRectValue];
+        if (!CGRectEqualToRect(previousFrameForView, view.frame)) {
+            return YES;
+        }
+
+        NSValue *boundsRectRef = locInfo[@"bounds"];
+        CGRect previousBoundsForView = [boundsRectRef CGRectValue];
+        if (!CGRectEqualToRect(previousBoundsForView, view.bounds)) {
+            return YES;
+        }
+    }
+
+    return NO;
 }
 
 - (void)twoFingerPanFromPoint:(CGPoint)startPoint toPoint:(CGPoint)toPoint steps:(NSUInteger)stepCount {
