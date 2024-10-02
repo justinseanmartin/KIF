@@ -238,6 +238,11 @@ static BOOL KIFUITestActorAnimationsEnabled = YES;
         [self runBlock:^KIFTestStepResult(NSError **error) {
             __block BOOL runningAnimationFound = false;
             for (UIWindow *window in [UIApplication sharedApplication].windowsWithKeyWindow) {
+                // Don't wait for animations on windows that are obstructed
+                if (![window isProbablyTappable]) {
+                    continue;
+                }
+
                 [window performBlockOnDescendentViews:^(UIView *view, BOOL *stop) {
                     BOOL isViewVisible = [view isVisibleInViewHierarchy];   // do not wait for animations of views that aren't visible
                     BOOL hasUnfinishedSystemAnimation = [NSStringFromClass(view.class) isEqualToString:@"_UIParallaxDimmingView"];  // indicates that the view-hierarchy is in an in-between-state of an animation

@@ -926,7 +926,7 @@ NS_INLINE BOOL StringsMatchExceptLineBreaks(NSString *expected, NSString *actual
         return YES;
     }
     
-    return [hitView isDescendantOfView:self];
+    return [hitView isDescendantOfView:self] || [self isDescendantOfView:hitView];
 }
 
 - (CGPoint)tappablePointInRect:(CGRect)rect;
